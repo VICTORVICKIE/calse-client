@@ -137,13 +137,17 @@ class Parser {
         return this.peek(0);
     }
 
-    private isValidParanthesis(): boolean {
-        let paran = 0;
-        for (const token of this.tokens) {
-            if (token.type === "bracket" && token.value === "(") paran++;
-            if (token.type === "bracket" && token.value === ")") paran--;
+    private countParanthesis(tokens: Token[]) {
+        let count = 0;
+        for (const token of tokens) {
+            if (token.type === "bracket" && token.value === "(") count++;
+            if (token.type === "bracket" && token.value === ")") count--;
         }
-        return paran === 0;
+        return count;
+    }
+
+    private isValidParanthesis(): boolean {
+        return this.countParanthesis(this.tokens) === 0;
     }
 
     private isConsecutiveNumbers(): boolean {
@@ -156,50 +160,53 @@ class Parser {
     // A + B % =, the result should be A * (1 + B%)
     private replaceLaymanPercentage(): void {
         const lexer = new Lexer();
-        console.log("before:", this.tokens);
-        // while (this.current.value !== null) {
-        //     if (this.current.type !== "percentage") {
-        //         this.cursor++;
-        //         continue;
-        //     }
-        //
-        //     const bound = this.peek(-2);
-        //     const prev = this.peek(-1);
-        //     const next = this.peek(1);
-        //
-        //     if (prev.type !== "additive" || bound.value === null || bound.value === "(") {
-        //         this.cursor++;
-        //         continue;
-        //     }
-        //
-        //     const substitute = `* (1 ${prev.value} ${next.value}%)`;
-        //     const replacement = lexer.tokenize(substitute, false);
-        //
-        //     for (let offset = -1; ; --offset) {
-        //         const peek = this.peek(offset);
-        //         if (peek.value === null || peek.value === "(") {
-        //             this.tokens.splice(offset + 1 + this.cursor++, 0, lexer.tokenize("(", false)[0]);
-        //             break;
-        //         }
-        //     }
-        //
-        //     for (let offset = 1; ; ++offset) {
-        //         const peek = this.peek(offset);
-        //         if (peek.value === null || peek.value === ")") {
-        //             this.tokens.splice(offset + this.cursor, 0, lexer.tokenize(")", false)[0]);
-        //             break;
-        //         }
-        //     }
-        //     // A + % B => replace + % B with * ( 1 + % B), we treat percentage as prefix unary
-        //     this.tokens.splice(this.cursor - 1, 3);
-        //     this.tokens = this.tokens
-        //         .slice(0, this.cursor)
-        //         .concat(replacement)
-        //         .concat(this.tokens.slice(this.cursor, this.tokens.length));
-        //     this.cursor += replacement.length;
-        // }
-        // this.cursor = 0;
-        console.log("after:", this.tokens);
+        // console.log("before:", this.tokens);
+        while (this.current.value !== null) {
+            if (this.current.type !== "percentage") {
+                this.cursor++;
+                continue;
+            }
+            // console.log(this.cursor, this.current);
+            const bound = this.peek(-2); // boundary to determine unary or not
+            const prev = this.peek(-1); // additive
+            const next = this.peek(1); // operand
+
+            if (prev.type !== "additive" || bound.value === null || bound.value === "(") {
+                this.cursor++;
+                continue;
+            }
+
+            const substitute = `) * (1 ${prev.value} ${next.value}%)`;
+            const replacement = lexer.tokenize(substitute, false);
+
+            const rightTokens = this.tokens.slice(this.cursor + 1);
+            const leftTokens = this.tokens.slice(0, this.cursor);
+            const right = this.countParanthesis(rightTokens);
+            const left = this.countParanthesis(leftTokens);
+
+            this.tokens.splice(this.cursor - 1, 3, ...replacement);
+            if (left !== 0 && right !== 0) {
+                let count = 0;
+                for (let i = leftTokens.length - 1; i > 0; --i) {
+                    const token = leftTokens[i];
+                    if (token.type === "bracket" && token.value === "(") count++;
+                    if (token.type === "bracket" && token.value === ")") count--;
+
+                    if (count > 0) {
+                        this.tokens.splice(i, 0, lexer.tokenize("(", false)[0]);
+                        break;
+                    }
+                }
+            } else {
+                this.tokens.splice(0, 0, lexer.tokenize("(", false)[0]);
+            }
+            this.cursor += replacement.length;
+
+            // console.log(this.cursor, this.current);
+            // console.log("after:", this.tokens);
+        }
+        // console.log("after:", this.tokens);
+        this.cursor = 0;
     }
 
     /** Grammar   :

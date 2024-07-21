@@ -1,5 +1,7 @@
 <script lang="ts">
     import { Evaluator } from "$lib/calculator";
+    // import { registerPlugin } from "@capacitor/core";
+    // import { onMount } from "svelte";
 
     let output = $state<number | null>();
     let evaluator = new Evaluator();
@@ -35,6 +37,15 @@
     BUTTONS.set("(", () => (editableInput += "("));
     BUTTONS.set(")", () => (editableInput += ")"));
     BUTTONS.set("=", () => (output = evaluator.evaluate(editableInput)));
+
+    // interface SQLPlugin {
+    //     sql(options: { value: string }): Promise<{ value: string }>;
+    // }
+    // onMount(async () => {
+    //     const SQL = registerPlugin<SQLPlugin>("SQL");
+    //     const { value } = await SQL.sql({ value: "Hello World!" });
+    //     console.log("Response from native:", value);
+    // });
 </script>
 
 <div class="px-2 pb-4">
